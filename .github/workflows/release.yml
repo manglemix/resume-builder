@@ -7,14 +7,14 @@ jobs:
     steps:
     - uses: actions/checkout@v3.5.3
 
+    - name: Cargo Test
+      run: cargo test
+
     - name: Install UPX
       run: |
         curl -L https://github.com/upx/upx/releases/download/v4.1.0/upx-4.1.0-amd64_linux.tar.xz > upx.tar.xz
         tar -xf upx.tar.xz
         mv upx-4.1.0-amd64_linux/upx ./upx
-
-    - name: Cargo Test
-      run: cargo test
 
     # - uses: Swatinem/rust-cache@v2
     #   with:
