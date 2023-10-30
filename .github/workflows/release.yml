@@ -5,7 +5,7 @@ env:
   DO_NOT_FORMAT: true
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3.5.3
@@ -18,6 +18,17 @@ jobs:
     - name: Cargo Check
       run: cargo check
 
+  build-linux:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.3
+
+    - name: Nightly
+      run: |
+        rustup install nightly
+        rustup default nightly
+
     # - uses: Swatinem/rust-cache@v2
     #   with:
     #     shared-key: "default"
@@ -26,22 +37,6 @@ jobs:
     
     - name: Build Linux
       run: cargo build --profile workflow-dev
-    
-    - name: Install Cross
-      uses: taiki-e/install-action@v2
-      with:
-        tool: cross
-    
-    - name: Build Windows
-      run: cross build --profile workflow-dev --target x86_64-pc-windows-gnu
-    
-    # - name: Build Mac Intel
-    #   uses: Shogan/rust-musl-action@v1.0.2
-    #   with:
-    #     args: cargo build --profile workflow-dev --target x86_64-apple-darwin
-    
-    # - name: Debug
-    #   run: ls target/x86_64-apple-darwin/debug
 
     - name: Install UPX
       run: |
@@ -51,9 +46,48 @@ jobs:
 
     - name: Compress
       continue-on-error: true
+      run: ./upx --best target/debug/resume-builder
+    
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: target/debug/resume-builder
+  
+  build-win:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.3
+
+    - name: Nightly
       run: |
-        ./upx --best target/x86_64-pc-windows-gnu/debug/resume-builder.exe
-        ./upx --best target/debug/resume-builder
+        rustup install nightly
+        rustup default nightly
+
+    # - uses: Swatinem/rust-cache@v2
+    #   with:
+    #     shared-key: "default"
+    #     key: "default"
+    #     cache-on-failure: "true"
+    
+    - name: Install Cross
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cross
+    
+    - name: Build Windows
+      run: cross build --profile workflow-dev --target x86_64-pc-windows-gnu
+    
+    - name: Install UPX
+      run: |
+        curl -L https://github.com/upx/upx/releases/download/v4.1.0/upx-4.1.0-amd64_linux.tar.xz > upx.tar.xz
+        tar -xf upx.tar.xz
+        mv upx-4.1.0-amd64_linux/upx ./upx
+
+    - name: Compress
+      continue-on-error: true
+      run: ./upx --best target/x86_64-pc-windows-gnu/debug/resume-builder.exe
     
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -61,4 +95,44 @@ jobs:
       with:
         files: |
           target/x86_64-pc-windows-gnu/debug/resume-builder.exe
-          target/debug/resume-builder
+  
+  build-mac:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.3
+
+    - name: Nightly
+      run: |
+        rustup install nightly
+        rustup default nightly
+
+    # - uses: Swatinem/rust-cache@v2
+    #   with:
+    #     shared-key: "default"
+    #     key: "default"
+    #     cache-on-failure: "true"
+    
+    - name: Build Mac Intel
+      uses: Shogan/rust-musl-action@v1.0.2
+      with:
+        args: cargo build --profile workflow-dev --target x86_64-apple-darwin
+    
+    - name: Debug
+      run: ls target/x86_64-apple-darwin/debug
+
+    # - name: Install UPX
+    #   run: |
+    #     curl -L https://github.com/upx/upx/releases/download/v4.1.0/upx-4.1.0-amd64_linux.tar.xz > upx.tar.xz
+    #     tar -xf upx.tar.xz
+    #     mv upx-4.1.0-amd64_linux/upx ./upx
+
+    # - name: Compress
+    #   continue-on-error: true
+    #   run: ./upx --best target/debug/resume-builder
+    
+    # - name: Release
+    #   uses: softprops/action-gh-release@v1
+    #   if: startsWith(github.ref, 'refs/tags/')
+    #   with:
+    #     files: target/debug/resume-builder
