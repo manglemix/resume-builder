@@ -8,8 +8,17 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2019, macOS-latest]
+        exe: [target/workflow-dev/resume-builder, target/workflow-dev/resume-builder.exe]
+        exclude:
+          - os: macos-latest
+            exe: target/workflow-dev/resume-builder.exe
+          - os: ubuntu-latest
+            exe: target/workflow-dev/resume-builder.exe
+          - os: windows-2019
+            exe: target/workflow-dev/resume-builder
     steps:
     - uses: actions/checkout@v3.5.3
 
@@ -33,10 +42,10 @@ jobs:
       uses: crazy-max/ghaction-upx@v3
       with:
         version: latest
-        files: target/workflow-dev/resume-builder*
+        files: ${{ matrix.exe }}
     
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: target/workflow-dev/resume-builder*
+        files: ${{ matrix.exe }}
