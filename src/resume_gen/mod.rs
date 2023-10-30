@@ -2,33 +2,18 @@ use std::{sync::Arc, path::PathBuf};
 
 use anyhow::Context;
 use headless_chrome::{Tab, types::PrintToPdfOptions};
-use ordered_float::OrderedFloat;
-use regex::Regex;
+use regex::{Regex, Captures};
 use serde::Deserialize;
 use tokio::fs::DirBuilder;
 use validator::Validate;
 
 use crate::page_scrapers::PageData;
 
-const SMALLEST_FONT_PERCENTAGE: f64 = 0.0001;
-const A4_PAGE_HEIGHT_PX: f64 = 973.0;
-const DEFAULT_RESUME_HTML: &str = r#"
-<!doctype html>
-<meta charset="utf-8">
-<name>
-<hr>
-<phonenumber><email><website>
-<education>
-    <h2>Education</h2>
-    <hr>
-    <entries>
-</education>
-<style>
-    * {
-        font-size: 1rem;
-    }
-</style>
-"#;
+pub(super) const SMALLEST_FONT_PERCENTAGE: f64 = 0.0003;
+pub(super) const A4_PAGE_HEIGHT_PX: f64 = 973.0;
+const DEFAULT_RESUME_HTML: &str = include_str!("default_template.html");
+const MIN_DEFAULT_RESUME_FONT_SIZE: f64 = 16.0;
+
 
 /// Standardized information about some form of education, such as college/university.
 #[derive(Deserialize, Validate)]
@@ -119,79 +104,121 @@ pub(super) struct ResumeData {
 pub(super) const OUTPUT_PATH: &str = "resumes/";
 
 
-pub(super) async fn use_page_data(page_data: PageData, mut tab: Arc<Tab>, mut resume_data: Arc<ResumeData>, mut resume_template: Option<Arc<String>>) -> anyhow::Result<()> {
-    let selected_template = resume_template.as_ref().map(|x| x.as_str()).unwrap_or(DEFAULT_RESUME_HTML);
-    let font_size_regex = Regex::new(r#"font-size:(.|\n)*\d+\.*\d*.*;"#).unwrap();
-    let min_font_size = font_size_regex
-        .find_iter(selected_template)
-        .filter_map(|x| {
-            let line = x.as_str();
-            let number_unit_str = line.split_at(10).1.trim();
-            let number_str;
-            let multiplier;
-            if number_unit_str.ends_with("rem;") {
-                number_str = number_unit_str.split_at(number_unit_str.len() - 4).0.trim();
-                multiplier = 16.0;
-            } else if number_unit_str.ends_with("px;") {
-                number_str = number_unit_str.split_at(number_unit_str.len() - 3).0.trim();
-                multiplier = 1.0;
-            } else {
-                return None
-            }
-            let size: Option<f64> = number_str.parse().ok();
-            size.map(|x| OrderedFloat(x * multiplier))
-        })
-        .min()
-        .map(|x| x.0)
-        .unwrap_or(16.0);
-    let mut page_scale = 1.0;
-    let mut too_many_lines = false;
-    
-    let resume_bytes = loop {
-        let (resume_body, tmp1, tmp2) = tokio_rayon::spawn(move || {
-            let resume_body = resume_template.as_ref().map(|x| x.as_str()).unwrap_or(DEFAULT_RESUME_HTML);
-    
+#[derive(Clone)]
+pub(super) enum ResumeTemplate {
+    Custom {
+        template: Arc<String>,
+        min_font_size: f64
+    },
+    Default
+}
+
+
+pub(super) struct Regexes {
+    name: Regex,
+    phonenumber: Regex,
+    email: Regex,
+    website: Regex,
+    education: Regex,
+    education_entries: Regex,
+    school_name: Regex,
+    gpa: Regex,
+    max_gpa: Regex
+}
+
+
+impl Default for Regexes {
+    fn default() -> Self {
+        Self {
+            name: Regex::new("<name>").unwrap(),
+            phonenumber: Regex::new("<phonenumber>").unwrap(),
+            email: Regex::new("<email>").unwrap(),
+            website: Regex::new("<website>").unwrap(),
+            education: Regex::new("<education>(.|\n)*</education>").unwrap(),
+            education_entries: Regex::new("<entries>(.|\n)*</entries>").unwrap(),
+            school_name: Regex::new("<school-name>").unwrap(),
+            gpa: Regex::new("<gpa>").unwrap(),
+            max_gpa: Regex::new("<max-gpa>").unwrap(),
+        }
+    }
+}
+
+
+pub(super) async fn use_page_data(page_data: PageData, tab: Arc<Tab>, resume_data: Arc<ResumeData>, resume_template: ResumeTemplate, regexes: Arc<Regexes>) -> anyhow::Result<()> {
+    let resume_bytes = tokio_rayon::spawn(move || {
+        let mut page_scale = 1.0;
+        let mut too_many_lines = false;
+        let (resume_body, min_font_size) = if let ResumeTemplate::Custom { template, min_font_size } = &resume_template {
+            (template.as_str(), *min_font_size)
+        } else {
+            (DEFAULT_RESUME_HTML, MIN_DEFAULT_RESUME_FONT_SIZE)
+        };
+
+        loop {
             macro_rules! sub {
-                ($body: expr, $tag: literal, $($arg:tt)*) => {
-                    Regex::new($tag).unwrap().replace_all(&$body, |_: &regex::Captures| $($arg)*)
+                ($body: expr, $reg: ident, $($arg:tt)*) => {
+                    regexes.$reg.replace_all(&$body, $($arg)*)
                 };
             }
     
-            let resume_body = sub!(resume_body, "<phonenumber>", format!("{}", resume_data.phone_number));
-            let resume_body = sub!(resume_body, "<email>", format!("|<a href=mailto:{}>Email</a>", resume_data.email));
+            let resume_body = sub!(resume_body, name, |_: &Captures| format!("<div class=\"name\">{}</div>", resume_data.name));
+            let resume_body = sub!(resume_body, phonenumber, |_: &Captures| format!("<div class=\"phonenumber\">{}</div>", resume_data.phone_number));
+            let resume_body = sub!(resume_body, email, |_: &Captures| format!("<a class=\"email\" href=mailto:{}>Email</a>", resume_data.email));
             let resume_body = match resume_data.website.as_ref() {
-                Some(website) => sub!(resume_body, "<website>", format!("|<a href={}>Website</a>", website)),
+                Some(website) => sub!(resume_body, website, |_: &Captures| format!("<a class=\"website\" href={website}>Website</a>")),
                 None => resume_body
             };
+            let resume_body = sub!(resume_body, education, |c: &Captures| {
+                let matched = c.get(0).unwrap().as_str();
+                // Remove <education> tags
+                let education_block = matched.split_at(matched.len() - 12).0.split_at(11).1;
+                regexes
+                    .education_entries
+                    .replace_all(education_block, |c: &Captures| {
+                        let matched = c.get(0).unwrap().as_str();
+                        // Remove <entries> tags
+                        let entry = matched.split_at(matched.len() - 10).0.split_at(9).1;
+
+                        resume_data.education
+                            .iter()
+                            .map(|education| {
+                                let entry = sub!(entry, school_name, |_: &Captures| format!("<div class=\"school-name\">{}</div>", education.school_name));
+                                let entry = sub!(entry, gpa, |_: &Captures| format!("<div class=\"gpa\">{}</div>", education.gpa));
+                                let entry = match education.max_gpa {
+                                    Some(x) => sub!(entry, max_gpa, |_: &Captures| format!("<div class=\"max-gpa\">/{x}</div>")),
+                                    None => entry
+                                };
+                                entry.into_owned()
+                            })
+                            .collect::<String>()
+                    }).into_owned()
+            });
+
+            tab
+                .navigate_to(&format!("data:text/html,{resume_body}"))?
+                .wait_until_navigated()?;
+            let mut height = tab.find_element("html").unwrap().get_box_model().unwrap().height;
     
-            (resume_body.into_owned(), resume_data, resume_template)
-        }).await;
-
-        resume_data = tmp1;
-        resume_template = tmp2;
+            if height > A4_PAGE_HEIGHT_PX {
+                let new_page_scale = A4_PAGE_HEIGHT_PX / height;
+                height *= new_page_scale / page_scale;
+                page_scale = new_page_scale;
+            }
+            if min_font_size / height < SMALLEST_FONT_PERCENTAGE {
+                page_scale *= SMALLEST_FONT_PERCENTAGE / min_font_size * height;
+                too_many_lines = true;
+                continue;
+            }
+            if page_scale < 1.0 {
+                page_scale = 1.0f64.min(A4_PAGE_HEIGHT_PX / height * page_scale);
+            }
     
-        let (height, tmp) = tokio_rayon::spawn::<_, anyhow::Result<_>>(move || {
-            tab.navigate_to(&format!("data:text/html,{resume_body}"))?;
-            Ok((tab.find_element("html").unwrap().get_box_model().unwrap().height, tab))
-        }).await?;
-
-        tab = tmp;
-        if height > A4_PAGE_HEIGHT_PX {
-            page_scale = A4_PAGE_HEIGHT_PX / height;
-        }
-        if min_font_size / height < SMALLEST_FONT_PERCENTAGE {
-            page_scale *= SMALLEST_FONT_PERCENTAGE / min_font_size * height;
-            too_many_lines = true;
-            continue;
-        }
-
-        break tokio_rayon::spawn(move || {
-            tab.print_to_pdf(Some(PrintToPdfOptions {
+            break tab.print_to_pdf(Some(PrintToPdfOptions {
                 scale: Some(page_scale),
                 ..Default::default()
             }))
-        }).await?;
-    };
+        }
+    }).await?;
 
     let folder_path = PathBuf::from(OUTPUT_PATH).join(format!("{} {}", page_data.company, page_data.job_title));
     DirBuilder::new().recursive(true).create(&folder_path).await.context("Failed to create a directory in resumes. Do we have permissions?")?;

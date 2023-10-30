@@ -12,9 +12,9 @@ impl PageScraper for SimplifyScraper {
             return None;
         }
         let page_data = state.create_page_data();
-        // let scraper = state.get_scraper();
-        // println!("{:?}", soup.tag("ul").class("ml-5 list-disc").find_all().map(|x| x.children().map(|x| x.text()).collect::<Vec<_>>()).collect::<Vec<_>>());
-        todo!();
+        let scraper = state.get_scraper();
+        
+        return None;
         
         Some(Ok(page_data))
     }

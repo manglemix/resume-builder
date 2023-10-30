@@ -4,7 +4,9 @@ use std::{sync::{mpsc::{self, SyncSender}, Arc}, fs::DirBuilder, path::PathBuf, 
 use anyhow::Context;
 use fxhash::{FxHasher, FxHashSet};
 use headless_chrome::Browser;
+use ordered_float::NotNan;
 use page_scrapers::PageData;
+use regex::Regex;
 use resume_gen::ResumeData;
 use rust_bert::pipelines::keywords_extraction::{KeywordExtractionModel, Keyword};
 use serde::Deserialize;
@@ -12,7 +14,7 @@ use tokio::task::JoinSet;
 use tokio_rayon::rayon;
 use url::Url;
 use validator::Validate;
-use crate::{page_scrapers::{PageDataSerde, DEFAULT_SCRAPERS, ScraperState, scrape_page}, resume_gen::{use_page_data, OUTPUT_PATH}};
+use crate::{page_scrapers::{PageDataSerde, DEFAULT_SCRAPERS, ScraperState, scrape_page}, resume_gen::{use_page_data, OUTPUT_PATH, ResumeTemplate, A4_PAGE_HEIGHT_PX, SMALLEST_FONT_PERCENTAGE, Regexes}};
 
 mod page_scrapers;
 mod resume_gen;
@@ -39,7 +41,40 @@ async fn main() -> anyhow::Result<()> {
 
     config.resume_data.validate()?;
     let resume_data = Arc::new(config.resume_data);
-    let resume_template_path = config.resume_template_path.map(Arc::new);
+
+    let resume_template = if let Some(path) = config.resume_template_path {
+        let template = std::fs::read_to_string(path).context("Failed to read custom resume template. Does it exist? Do we have permissions?")?;
+        let font_size_regex = Regex::new(r#"font-size:(.|\n)*\d+\.*\d*.*;"#).unwrap();
+        let min_font_size = font_size_regex
+            .find_iter(&template)
+            .filter_map(|x| {
+                let line = x.as_str();
+                let number_unit_str = line.split_at(10).1.trim();
+                let number_str;
+                let multiplier;
+                if number_unit_str.ends_with("rem;") {
+                    number_str = number_unit_str.split_at(number_unit_str.len() - 4).0.trim();
+                    multiplier = 16.0;
+                } else if number_unit_str.ends_with("px;") {
+                    number_str = number_unit_str.split_at(number_unit_str.len() - 3).0.trim();
+                    multiplier = 1.0;
+                } else {
+                    return None
+                }
+                let size: Option<f64> = number_str.parse().ok();
+                size.map(|x| NotNan::new(x * multiplier).unwrap())
+            })
+            .min()
+            .map(|x| x.into())
+            .unwrap_or(16.0);
+
+        if min_font_size / A4_PAGE_HEIGHT_PX < SMALLEST_FONT_PERCENTAGE {
+            return Err(anyhow::anyhow!("The smallest font size ({min_font_size}px) in the given resume template is too small to be read"))
+        }
+        ResumeTemplate::Custom { template: Arc::new(template), min_font_size }
+    } else {
+        ResumeTemplate::Default
+    };
 
     let omit_default_scrapers: FxHashSet<String> = config.omit_default_scrapers.into_iter().collect();
 
@@ -75,6 +110,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut scrape_tasks = JoinSet::<anyhow::Result<_>>::new();
     DirBuilder::new().recursive(true).create(OUTPUT_PATH).context("Failed to create resumes directory. Do we have permissions?")?;
+    let regexes = Arc::new(Regexes::default());
     
     for url in config.job_requirement_websites {
         let url = Arc::new(url);
@@ -86,12 +122,15 @@ async fn main() -> anyhow::Result<()> {
         if cached_file_path.try_exists().context(format!("Failed to check if a website has been cached. Do we have read permissions for {CACHE_PATH}?"))? {
             let tab = browser!().new_tab()?;
             let resume_data = resume_data.clone();
-            let resume_template_path = resume_template_path.clone();
+            let resume_template = resume_template.clone();
+            let regexes = regexes.clone();
+
             scrape_tasks.spawn(async move {
                 let bytes = tokio::fs::read(&cached_file_path).await.context(format!("Failed to read {cached_file_path:?}"))?;
-                let page_data: PageDataSerde = bitcode::decode(&bytes).context(format!("Failed to deserialize {cached_file_path:?}. Consider deleting it."))?;
+                let page_data: Option<PageDataSerde> = bitcode::decode(&bytes).context(format!("Failed to deserialize {cached_file_path:?}. Consider deleting it."))?;
+                let Some(page_data) = page_data else { return Ok(()) };
                 let page_data = PageData::from(page_data);
-                use_page_data(page_data, tab, resume_data, resume_template_path).await.context(format!("Failed to process {cached_file_path:?}"))
+                use_page_data(page_data, tab, resume_data, resume_template, regexes).await.context(format!("Failed to process {cached_file_path:?}"))
             });
             continue;
         }
@@ -103,7 +142,8 @@ async fn main() -> anyhow::Result<()> {
         let tab = browser!().new_tab()?;
         let keyword_extractor_sender = keyword_extractor_sender.clone();
         let resume_data = resume_data.clone();
-        let resume_template_path = resume_template_path.clone();
+        let resume_template = resume_template.clone();
+        let regexes = regexes.clone();
 
         scrape_tasks.spawn(async move {
             let url2 = url.clone();
@@ -143,15 +183,14 @@ async fn main() -> anyhow::Result<()> {
                 }
             });
 
+            let page_data = page_data.map(PageDataSerde::from);
+            let encoded = bitcode::encode(&page_data).unwrap();
+            tokio::spawn(async move { tokio::fs::write(&cached_file_path, encoded).await.expect(&format!("{cached_file_path:?} should be writable")) });
             let Some(page_data) = page_data else {
                 return Ok(())
             };
-            let page_data = PageDataSerde::from(page_data);
-            let encoded = bitcode::encode(&page_data).unwrap();
             let page_data = PageData::from(page_data);
-            tokio::spawn(async move { tokio::fs::write(&cached_file_path, encoded).await.expect(&format!("{cached_file_path:?} should be writable")) });
-
-            use_page_data(page_data, tab, resume_data, resume_template_path).await.context(format!("Failed to process {url}"))
+            use_page_data(page_data, tab, resume_data, resume_template, regexes).await.context(format!("Failed to process {url}"))
         });
     }
 
