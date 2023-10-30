@@ -32,11 +32,6 @@ jobs:
     
     - name: Build Windows
       run: cross build --profile workflow-dev --target x86_64-pc-windows-gnu
-
-    - name: Rename client
-      run: |
-        mv target/x86_64-pc-windows-gnu/debug/resume-builder.exe target/x86_64-pc-windows-gnu/debug/resume-builder-server.exe
-        mv target/debug/resume-builder target/debug/resume-builder-server
     
     # - name: Build Mac Intel
     #   uses: Shogan/rust-musl-action@v1.0.2
