@@ -9,11 +9,25 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 toml = "0.8"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "parking_lot"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "parking_lot", "fs"] }
 serde = { version = "1", features = ["derive"] }
 fxhash = "0.2"
-reqwest = "0.11"
-soup = "0.5"
+scraper = "0.17"
 anyhow = "1"
 tokio-rayon = "2"
-url = "2"
+url = { version = "2", features = ["serde"] }
+rust-bert = { version = "0.21", features = ["download-libtorch"]}
+headless_chrome = "1.0.5"
+bitcode = "0.5"
+validator = { version = "0.16", features = ["derive", "phone"] }
+regex = "1.10"
+ordered-float = "4.1"
+
+[profile.workflow-dev]
+inherits = "dev"
+opt-level = 1
+lto = "thin"
+incremental = false
+
+[profile.release]
+lto = true

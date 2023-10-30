@@ -1,0 +1,61 @@
+on:
+  create
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.3
+
+    - name: Install UPX
+      run: |
+        curl -L https://github.com/upx/upx/releases/download/v4.1.0/upx-4.1.0-amd64_linux.tar.xz > upx.tar.xz
+        tar -xf upx.tar.xz
+        mv upx-4.1.0-amd64_linux/upx ./upx
+
+    - name: Cargo Test
+      run: cargo test
+
+    # - uses: Swatinem/rust-cache@v2
+    #   with:
+    #     shared-key: "default"
+    #     key: "default"
+    #     cache-on-failure: "true"
+    
+    - name: Install Cross
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cross
+    
+    - name: Build Linux
+      run: cargo build --profile workflow-dev
+    
+    - name: Build Windows
+      run: cross build --profile workflow-dev --target x86_64-pc-windows-gnu
+
+    - name: Rename client
+      run: |
+        mv target/x86_64-pc-windows-gnu/debug/resume-builder.exe target/x86_64-pc-windows-gnu/debug/resume-builder-server.exe
+        mv target/debug/resume-builder target/debug/resume-builder-server
+    
+    # - name: Build Mac Intel
+    #   uses: Shogan/rust-musl-action@v1.0.2
+    #   with:
+    #     args: cargo build --profile workflow-dev --target x86_64-apple-darwin
+    
+    # - name: Debug
+    #   run: ls target/x86_64-apple-darwin/debug
+
+    - name: Compress
+      continue-on-error: true
+      run: |
+        ./upx --best target/x86_64-pc-windows-gnu/debug/resume-builder.exe
+        ./upx --best target/debug/resume-builder
+    
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          target/x86_64-pc-windows-gnu/debug/resume-builder.exe
+          target/debug/resume-builder
