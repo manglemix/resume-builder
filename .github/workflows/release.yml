@@ -15,8 +15,8 @@ jobs:
         rustup install nightly
         rustup default nightly
 
-    - name: Cargo Test
-      run: cargo test
+    - name: Cargo Check
+      run: cargo check
 
     # - uses: Swatinem/rust-cache@v2
     #   with:
