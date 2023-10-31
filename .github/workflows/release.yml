@@ -39,7 +39,7 @@ jobs:
         files: target/workflow-dev/resume-builder
 
   build-win:
-    runs-on: windows-2019
+    runs-on: windows-latest
     
     steps:
     - uses: actions/checkout@v3.5.3
