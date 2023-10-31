@@ -22,6 +22,8 @@ jobs:
         rm libtorch.zip
         echo "LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo $LIBTORCH
+        echo $LD_LIBRARY_PATH
 
     - name: Cargo Check
       run: cargo check
@@ -58,6 +60,7 @@ jobs:
         rm libtorch.zip
         $Env:LIBTORCH = "X:D:\a\resume-builder\resume-builder\libtorch"
         $Env:Path += ";X:D:\a\resume-builder\resume-builder\libtorch\lib"
+        dir env:
 
     - name: Cargo Check
       run: cargo check
@@ -94,6 +97,8 @@ jobs:
         brew install pytorch jq
         echo "LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version')" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo $LIBTORCH
+        echo $LD_LIBRARY_PATH
 
     - name: Cargo Check
       run: cargo check
