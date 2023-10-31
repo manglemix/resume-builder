@@ -27,41 +27,86 @@ jobs:
     - name: Cargo Check
       run: cargo check
     
-  #   - name: Build
-  #     run: cargo bundle --profile workflow-dev
+    - name: Build
+      run: cargo bundle --profile workflow-dev
 
-  #   - name: Run UPX
-  #     continue-on-error: true
-  #     uses: crazy-max/ghaction-upx@v3
-  #     with:
-  #       version: latest
-  #       files: target/workflow-dev/resume-builder
+    - name: Run UPX
+      continue-on-error: true
+      uses: crazy-max/ghaction-upx@v3
+      with:
+        version: latest
+        files: target/workflow-dev/resume-builder
     
-  #   - name: Release
-  #     uses: softprops/action-gh-release@v1
-  #     if: startsWith(github.ref, 'refs/tags/')
-  #     with:
-  #       files: target/workflow-dev/resume-builder
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: target/workflow-dev/resume-builder
+
+  build-win:
+    runs-on: windows-2019
+    
+    steps:
+    - uses: actions/checkout@v3.5.3
+
+    - name: Nightly
+      run: rustup install nightly
+    
+    - name: Install libtorch
+      run: |
+        # curl -L https://download.pytorch.org/libtorch/cu118/libtorch-win-shared-with-deps-2.0.0%2Bcu118.zip > libtorch.zip
+        # unzip libtorch.zip
+        # rm libtorch.zip
+        pwd
+        # export LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/lib:$LD_LIBRARY_PATH
+
+    # - name: Cargo Check
+    #   run: cargo check
+    
+    # - name: Build
+    #   run: cargo bundle --profile workflow-dev
+
+    # - name: Run UPX
+    #   continue-on-error: true
+    #   uses: crazy-max/ghaction-upx@v3
+    #   with:
+    #     version: latest
+    #     files: target/workflow-dev/resume-builder
+    
+    # - name: Release
+    #   uses: softprops/action-gh-release@v1
+    #   if: startsWith(github.ref, 'refs/tags/')
+    #   with:
+    #     files: target/workflow-dev/resume-builder
   
-  # build-apple:
-  #   runs-on: macOS-latest
-  #   steps:
-  #   - uses: actions/checkout@v3.5.3
+  build-apple:
+    runs-on: macOS-latest
+    steps:
+    - uses: actions/checkout@v3.5.3
 
-  #   - name: Nightly
-  #     run: rustup install nightly
+    - name: Nightly
+      run: rustup install nightly
+    
+    - name: Install libtorch
+      run: |
+        # curl -L https://download.pytorch.org/libtorch/cpu/libtorch-macos-2.0.0.zip > libtorch.zip
+        # unzip libtorch.zip
+        # rm libtorch.zip
+        brew install pytorch jq
+        export LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version')
+        export LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH
 
-  #   - name: Cargo Check
-  #     run: cargo check
+    - name: Cargo Check
+      run: cargo check
     
-  #   - name: Install Cargo Bundle
-  #     run: cargo install cargo-bundle
+    - name: Install Cargo Bundle
+      run: cargo install cargo-bundle
     
-  #   - name: Build
-  #     run: cargo bundle --profile workflow-dev
+    - name: Build
+      run: cargo bundle --profile workflow-dev
     
-  #   - name: Release
-  #     uses: softprops/action-gh-release@v1
-  #     if: startsWith(github.ref, 'refs/tags/')
-  #     with:
-  #       files: target/workflow-dev/resume-builder.app
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: target/workflow-dev/resume-builder.app
