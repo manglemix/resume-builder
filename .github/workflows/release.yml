@@ -3,49 +3,64 @@ on:
 
 env:
   DO_NOT_FORMAT: true
+  LIBTORCH_STATIC: 1
+  # LIBTORCH: 
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-2019, macOS-latest]
-        exe: [target/workflow-dev/resume-builder, target/workflow-dev/resume-builder.exe]
-        exclude:
-          - os: macos-latest
-            exe: target/workflow-dev/resume-builder.exe
-          - os: ubuntu-latest
-            exe: target/workflow-dev/resume-builder.exe
-          - os: windows-2019
-            exe: target/workflow-dev/resume-builder
+  build-linux:
+    runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v3.5.3
+    # - uses: actions/checkout@v3.5.3
 
-    - name: Nightly
-      run: rustup install nightly
-
-    - name: Cargo Check
-      run: cargo check
-
-    # - uses: Swatinem/rust-cache@v2
-    #   with:
-    #     shared-key: "default"
-    #     key: "default"
-    #     cache-on-failure: "true"
+    # - name: Nightly
+    #   run: rustup install nightly
     
-    - name: Build
-      run: cargo build --profile workflow-dev
+    - name: Install libtorch
+      run: |
+        curl -L https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip > libtorch.zip
+        unzip libtorch.zip
+        pwd
+        ls
 
-    - name: Run UPX
-      continue-on-error: true
-      uses: crazy-max/ghaction-upx@v3
-      with:
-        version: latest
-        files: ${{ matrix.exe }}
+  #   - name: Cargo Check
+  #     run: cargo check
     
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: ${{ matrix.exe }}
+  #   - name: Build
+  #     run: cargo bundle --profile workflow-dev
+
+  #   - name: Run UPX
+  #     continue-on-error: true
+  #     uses: crazy-max/ghaction-upx@v3
+  #     with:
+  #       version: latest
+  #       files: target/workflow-dev/resume-builder
+    
+  #   - name: Release
+  #     uses: softprops/action-gh-release@v1
+  #     if: startsWith(github.ref, 'refs/tags/')
+  #     with:
+  #       files: target/workflow-dev/resume-builder
+  
+  # build-apple:
+  #   runs-on: macOS-latest
+  #   steps:
+  #   - uses: actions/checkout@v3.5.3
+
+  #   - name: Nightly
+  #     run: rustup install nightly
+
+  #   - name: Cargo Check
+  #     run: cargo check
+    
+  #   - name: Install Cargo Bundle
+  #     run: cargo install cargo-bundle
+    
+  #   - name: Build
+  #     run: cargo bundle --profile workflow-dev
+    
+  #   - name: Release
+  #     uses: softprops/action-gh-release@v1
+  #     if: startsWith(github.ref, 'refs/tags/')
+  #     with:
+  #       files: target/workflow-dev/resume-builder.app
