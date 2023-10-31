@@ -16,7 +16,7 @@ scraper = "0.17"
 anyhow = "1"
 tokio-rayon = "2"
 url = { version = "2", features = ["serde"] }
-rust-bert = "0.21"
+rust-bert = { vesrion = "0.21", features = ["download-libtorch"]}
 headless_chrome = "1.0.5"
 bitcode = "0.5"
 validator = { version = "0.16", features = ["derive", "phone"] }

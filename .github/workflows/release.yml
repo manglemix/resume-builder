@@ -4,7 +4,6 @@ on:
 env:
   DO_NOT_FORMAT: 1
   LIBTORCH_STATIC: 1
-  LIBTORCH_USE_PYTORCH: 1
 
 jobs:
   build-linux:
@@ -16,9 +15,6 @@ jobs:
     - name: Nightly
       run: rustup install nightly
     
-    - name: Install libtorch
-      run: pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
-
     - name: Cargo Check
       run: cargo check
     
@@ -47,9 +43,6 @@ jobs:
     - name: Nightly
       run: rustup install nightly
     
-    - name: Install libtorch
-      run: pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
-
     - name: Cargo Check
       run: cargo check
     
@@ -77,9 +70,6 @@ jobs:
     - name: Nightly
       run: rustup install nightly
     
-    - name: Install libtorch
-      run: pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0
-
     - name: Cargo Check
       run: cargo check
     
