@@ -17,7 +17,7 @@ jobs:
       run: rustup install nightly
     
     - name: Install libtorch
-      run: pip3 install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
+      run: pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
 
     - name: Cargo Check
       run: cargo check
@@ -48,7 +48,7 @@ jobs:
       run: rustup install nightly
     
     - name: Install libtorch
-      run: pip3 install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
+      run: pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
 
     - name: Cargo Check
       run: cargo check
@@ -78,7 +78,7 @@ jobs:
       run: rustup install nightly
     
     - name: Install libtorch
-      run: pip3 install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0
+      run: pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0
 
     - name: Cargo Check
       run: cargo check
