@@ -4,27 +4,28 @@ on:
 env:
   DO_NOT_FORMAT: true
   LIBTORCH_STATIC: 1
-  # LIBTORCH: 
+  LIBTORCH: /home/runner/work/resume-builder/resume-builder/libtorch
+  LD_LIBRARY_PATH: /home/runner/work/resume-builder/resume-builder/lib
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
     
     steps:
-    # - uses: actions/checkout@v3.5.3
+    - uses: actions/checkout@v3.5.3
 
-    # - name: Nightly
-    #   run: rustup install nightly
+    - name: Nightly
+      run: rustup install nightly
     
     - name: Install libtorch
       run: |
         curl -L https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip > libtorch.zip
         unzip libtorch.zip
-        pwd
-        ls
+        rm libtorch.zip
+        export LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/lib:$LD_LIBRARY_PATH
 
-  #   - name: Cargo Check
-  #     run: cargo check
+    - name: Cargo Check
+      run: cargo check
     
   #   - name: Build
   #     run: cargo bundle --profile workflow-dev
