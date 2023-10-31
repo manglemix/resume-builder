@@ -22,7 +22,7 @@ jobs:
         rm libtorch.zip
 
     - name: Cargo Check
-      run: cargo check
+      run: LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/libtorch/lib:$LD_LIBRARY_PATH cargo check
     
     - name: Build
       run: LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/libtorch/lib:$LD_LIBRARY_PATH cargo build --profile workflow-dev
@@ -52,11 +52,14 @@ jobs:
     - name: Install libtorch
       run: |
         curl -L https://download.pytorch.org/libtorch/cu118/libtorch-win-shared-with-deps-2.0.0%2Bcu118.zip > libtorch.zip
-        unzip libtorch.zip
+        Expand-Archive -Force libtorch.zip libtorch
         rm libtorch.zip
 
     - name: Cargo Check
-      run: cargo check
+      run: |
+        $Env:LIBTORCH = "X:D:\a\resume-builder\resume-builder\libtorch"
+        $Env:Path += ";X:D:\a\resume-builder\resume-builder\libtorch\lib"  
+        cargo check
     
     - name: Build
       run: |
@@ -93,7 +96,7 @@ jobs:
         brew install pytorch jq
 
     - name: Cargo Check
-      run: cargo check
+      run: LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version') LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH" cargo check
     
     - name: Install Cargo Bundle
       run: cargo install cargo-bundle
