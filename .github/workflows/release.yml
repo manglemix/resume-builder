@@ -54,7 +54,7 @@ jobs:
     - name: Install libtorch
       run: |
         curl -L https://download.pytorch.org/libtorch/cu118/libtorch-win-shared-with-deps-debug-2.0.0%2Bcu118.zip > libtorch.zip
-        Expand-Archive -Force libtorch.zip libtorch
+        unzip libtorch.zip
         rm libtorch.zip
         pwd
         $Env:LIBTORCH = "D:\a\resume-builder\resume-builder\libtorch"
