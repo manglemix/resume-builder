@@ -20,8 +20,8 @@ jobs:
         curl -L https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip > libtorch.zip
         unzip libtorch.zip
         rm libtorch.zip
-        export LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch
-        export LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/libtorch/lib:$LD_LIBRARY_PATH
+        echo "LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Cargo Check
       run: cargo check
@@ -92,8 +92,8 @@ jobs:
         unzip libtorch.zip
         rm libtorch.zip
         brew install pytorch jq
-        export LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version')
-        export LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH
+        echo "LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version')" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Cargo Check
       run: cargo check
