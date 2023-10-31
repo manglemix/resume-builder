@@ -16,7 +16,7 @@ scraper = "0.17"
 anyhow = "1"
 tokio-rayon = "2"
 url = { version = "2", features = ["serde"] }
-rust-bert = { version = "0.21", features = ["download-libtorch"]}
+rust-bert = "0.21"
 headless_chrome = "1.0.5"
 bitcode = "0.5"
 validator = { version = "0.16", features = ["derive", "phone"] }
@@ -31,3 +31,22 @@ incremental = false
 
 [profile.release]
 lto = true
+
+[package.metadata.bundle]
+name = "ResumeBuilder"
+identifier = "com.manglemix.resume-builder"
+icon = []
+version = "0.1.0"
+resources = []
+copyright = "MIT OR Apache-2.0"
+category = "Developer Tool"
+short_description = "An example application."
+long_description = """
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua.  Ut
+enim ad minim veniam, quis nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat.
+"""
+deb_depends = []
+osx_frameworks = []
+osx_url_schemes = ["com.manglemix.resume-builder"]

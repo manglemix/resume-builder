@@ -2489,9 +2489,6 @@ dependencies = [
  "anyhow",
  "cc",
  "libc",
- "serde",
- "serde_json",
- "ureq",
  "zip",
 ]
 
@@ -2605,8 +2602,6 @@ dependencies = [
  "once_cell",
  "rustls",
  "rustls-webpki",
- "serde",
- "serde_json",
  "socks",
  "url",
  "webpki-roots",
