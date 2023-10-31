@@ -2,7 +2,7 @@ on:
   create
 
 env:
-  DO_NOT_FORMAT: true
+  DO_NOT_FORMAT: 1
   LIBTORCH_STATIC: 1
 
 jobs:
@@ -20,12 +20,14 @@ jobs:
         curl -L https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip > libtorch.zip
         unzip libtorch.zip
         rm libtorch.zip
+        echo "LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Cargo Check
-      run: LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/libtorch/lib:$LD_LIBRARY_PATH cargo check
+      run: cargo check
     
     - name: Build
-      run: LIBTORCH=/home/runner/work/resume-builder/resume-builder/libtorch LD_LIBRARY_PATH=/home/runner/work/resume-builder/resume-builder/libtorch/lib:$LD_LIBRARY_PATH cargo build --profile workflow-dev
+      run: cargo build --profile workflow-dev
 
     - name: Run UPX
       continue-on-error: true
@@ -51,21 +53,18 @@ jobs:
     
     - name: Install libtorch
       run: |
-        curl -L https://download.pytorch.org/libtorch/cu118/libtorch-win-shared-with-deps-2.0.0%2Bcu118.zip > libtorch.zip
+        curl -L https://download.pytorch.org/libtorch/cu118/libtorch-win-shared-with-deps-debug-2.0.0%2Bcu118.zip > libtorch.zip
         Expand-Archive -Force libtorch.zip libtorch
         rm libtorch.zip
+        pwd
+        $Env:LIBTORCH = "D:\a\resume-builder\resume-builder\libtorch"
+        $Env:Path += ";D:\a\resume-builder\resume-builder\libtorch\lib"
 
     - name: Cargo Check
-      run: |
-        $Env:LIBTORCH = "X:D:\a\resume-builder\resume-builder\libtorch"
-        $Env:Path += ";X:D:\a\resume-builder\resume-builder\libtorch\lib"  
-        cargo check
+      run: cargo check
     
     - name: Build
-      run: |
-        $Env:LIBTORCH = "X:D:\a\resume-builder\resume-builder\libtorch"
-        $Env:Path += ";X:D:\a\resume-builder\resume-builder\libtorch\lib"
-        cargo build --profile workflow-dev
+      run: cargo build --profile workflow-dev
 
     - name: Run UPX
       continue-on-error: true
@@ -94,15 +93,17 @@ jobs:
         unzip libtorch.zip
         rm libtorch.zip
         brew install pytorch jq
+        echo "LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version')" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Cargo Check
-      run: LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version') LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH" cargo check
+      run: cargo check
     
     - name: Install Cargo Bundle
       run: cargo install cargo-bundle
     
     - name: Build
-      run: LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version') LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH" cargo bundle --profile workflow-dev
+      run: cargo bundle --profile workflow-dev
     
     - name: Release
       uses: softprops/action-gh-release@v1
